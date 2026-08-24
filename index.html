@@ -65,6 +65,19 @@ button{font-family:inherit;cursor:pointer;}
 .gate-btn.gs .dot{background:var(--safar);}  .gate-btn.gs:hover{border-color:var(--safar);background:var(--safar-tint);}
 .gate-btn.gf .dot{background:var(--favas);}  .gate-btn.gf:hover{border-color:var(--favas);background:var(--favas-tint);}
 .gate-guest{margin-top:14px;background:none;border:none;color:var(--ink-soft);font-size:12.5px;text-decoration:underline;}
+.gate-pin{display:none;}
+.gate-pin.show{display:block;}
+.gate-pin .pin-who{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:15px;margin-bottom:14px;}
+.gate-pin .pin-who .dot{width:11px;height:11px;border-radius:50%;}
+.pin-input{width:100%;padding:14px;border-radius:10px;border:1.5px solid var(--rule);background:var(--paper);font-family:'IBM Plex Mono',monospace;font-size:22px;letter-spacing:10px;text-align:center;color:var(--ink);}
+.pin-input:focus{outline:none;border-color:var(--ink-soft);}
+.pin-input.err{border-color:var(--rose);animation:pinshake .3s;}
+@keyframes pinshake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+.pin-error{color:var(--rose);font-size:12.5px;margin-top:8px;min-height:16px;}
+.pin-actions{display:flex;gap:10px;margin-top:16px;}
+.pin-btn{flex:1;padding:12px;border-radius:10px;border:1.5px solid var(--rule);background:var(--paper);font-weight:600;font-size:14px;}
+.pin-btn.primary{background:var(--ink);color:#fff;border-color:var(--ink);}
+.pin-btn:hover{opacity:.9;}
 
 /* ============ LAYOUT ============ */
 .app{display:none;min-height:100vh;}
@@ -238,12 +251,22 @@ tr:last-child td{border-bottom:none;}
     <div class="mark">🏠</div>
     <h2>Home Fund</h2>
     <p>Shared household kitty for Irshad, Safar &amp; Favas. Who's opening the app?</p>
-    <div class="gate-opt">
-      <button class="gate-btn gi" onclick="setIdentity('irshad')"><span class="dot"></span> Irshad</button>
-      <button class="gate-btn gs" onclick="setIdentity('safar')"><span class="dot"></span> Safar</button>
-      <button class="gate-btn gf" onclick="setIdentity('favas')"><span class="dot"></span> Favas</button>
+    <div class="gate-opt" id="gateOpt">
+      <button class="gate-btn gi" onclick="requestIdentity('irshad')"><span class="dot"></span> Irshad</button>
+      <button class="gate-btn gs" onclick="requestIdentity('safar')"><span class="dot"></span> Safar</button>
+      <button class="gate-btn gf" onclick="requestIdentity('favas')"><span class="dot"></span> Favas</button>
     </div>
-    <button class="gate-guest" onclick="setIdentity('guest')">Just viewing — skip this</button>
+    <button class="gate-guest" id="gateGuestBtn" onclick="setIdentity('guest')">Just viewing — skip this</button>
+
+    <div class="gate-pin" id="gatePin">
+      <div class="pin-who"><span class="dot" id="pinDot"></span><span id="pinName"></span></div>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" class="pin-input" id="pinInput" placeholder="••••" autocomplete="off">
+      <div class="pin-error" id="pinError"></div>
+      <div class="pin-actions">
+        <button class="pin-btn" onclick="cancelPinEntry()">Back</button>
+        <button class="pin-btn primary" onclick="submitPin()">Unlock</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -550,7 +573,59 @@ function initFirebase(){
 }
 
 /* ================= IDENTITY ================= */
+// Each person confirms their own identity with a short PIN before the gate opens.
+// This isn't real security (anyone with the file could read these), it's just a
+// courtesy check so Irshad, Safar and Favas don't accidentally act as each other.
+const IDENTITY_PINS = { irshad:'7894', safar:'1234', favas:'5678' };
+let pendingIdentity = null;
+
 function currentIdentity(){ return localStorage.getItem('hf_identity') || null; }
+
+function requestIdentity(p){
+  pendingIdentity = p;
+  document.getElementById('gateOpt').style.display = 'none';
+  document.getElementById('gateGuestBtn').style.display = 'none';
+  const pin = document.getElementById('gatePin');
+  pin.classList.add('show');
+  document.getElementById('pinName').textContent = PERSON_LABEL[p];
+  document.getElementById('pinDot').style.background = getComputedStyle(document.documentElement).getPropertyValue('--'+p);
+  const input = document.getElementById('pinInput');
+  input.value = '';
+  input.classList.remove('err');
+  document.getElementById('pinError').textContent = '';
+  setTimeout(()=>input.focus(), 50);
+}
+
+function cancelPinEntry(){
+  pendingIdentity = null;
+  document.getElementById('gatePin').classList.remove('show');
+  document.getElementById('gateOpt').style.display = '';
+  document.getElementById('gateGuestBtn').style.display = '';
+}
+
+function submitPin(){
+  if(!pendingIdentity) return;
+  const input = document.getElementById('pinInput');
+  const val = input.value.trim();
+  if(val === IDENTITY_PINS[pendingIdentity]){
+    const p = pendingIdentity;
+    pendingIdentity = null;
+    document.getElementById('gatePin').classList.remove('show');
+    document.getElementById('gateOpt').style.display = '';
+    document.getElementById('gateGuestBtn').style.display = '';
+    setIdentity(p);
+  } else {
+    input.classList.remove('err'); void input.offsetWidth; input.classList.add('err');
+    document.getElementById('pinError').textContent = 'Wrong PIN — try again.';
+    input.value = '';
+    input.focus();
+  }
+}
+
+document.getElementById('pinInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') submitPin();
+});
+
 function setIdentity(p){
   localStorage.setItem('hf_identity', p);
   document.getElementById('identityGate').classList.add('hide');
@@ -560,6 +635,7 @@ function setIdentity(p){
 function switchIdentity(){
   document.getElementById('appShell').classList.remove('show');
   document.getElementById('identityGate').classList.remove('hide');
+  cancelPinEntry();
 }
 function applyIdentityUI(){
   const id = currentIdentity();
