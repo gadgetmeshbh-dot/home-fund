@@ -289,7 +289,7 @@ tr:last-child td{border-bottom:none;}
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Settings &amp; Sync
       </button>
-      <div class="credit">Home Fund · v1.0</div>
+      <div class="credit">Home Fund · v1.1</div>
     </div>
   </aside>
 
@@ -303,7 +303,10 @@ tr:last-child td{border-bottom:none;}
           <h1 id="dashGreeting">Welcome</h1>
           <p>The shared kitty — everyone puts in, expenses come out, balance carries forward.</p>
         </div>
-        <button class="btn btn-emerald" onclick="openExpenseQuick()">＋ Add Expense</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" onclick="confirmSettleCycle()">🔒 Settle Cycle</button>
+          <button class="btn btn-emerald" onclick="openExpenseQuick()">＋ Add Expense</button>
+        </div>
       </div>
 
       <div class="widgets">
@@ -420,7 +423,8 @@ tr:last-child td{border-bottom:none;}
     <!-- ============ HISTORY ============ -->
     <div class="view" id="view-history">
       <div class="page-head">
-        <div><div class="eyebrow">Month by Month</div><h1>Cycle History</h1><p>How much came in, went out, and carried forward — every month.</p></div>
+        <div><div class="eyebrow">Cycle by Cycle</div><h1>Cycle History</h1><p>How much came in, went out, and carried forward — every settled cycle.</p></div>
+        <button class="btn btn-ghost" onclick="confirmSettleCycle()">🔒 Settle Current Cycle</button>
       </div>
       <div id="historyWrap"></div>
     </div>
@@ -578,8 +582,20 @@ function applyIdentityUI(){
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function cycleKeyFor(d = new Date()){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function cycleLabel(key){
-  const [y,m] = key.split('-').map(Number);
-  return new Date(y, m-1, 1).toLocaleDateString('en-IN',{month:'long', year:'numeric'});
+  if(!key) return '—';
+  // Manual cycle (this feature) — look it up by its Firestore doc id, e.g. "cycle_3".
+  const manual = cyclesCache.find(c=> c.id === key);
+  if(manual){
+    const start = fmtDate(manual.startDate);
+    const end = manual.endDate ? fmtDate(manual.endDate) : 'Ongoing';
+    return `Cycle ${manual.cycleNo} · ${start} – ${end}`;
+  }
+  // Legacy calendar-month key from before manual settling existed, e.g. "2026-08".
+  if(/^\d{4}-\d{2}$/.test(key)){
+    const [y,m] = key.split('-').map(Number);
+    return new Date(y, m-1, 1).toLocaleDateString('en-IN',{month:'long', year:'numeric'});
+  }
+  return key;
 }
 function fmt(n){
   const v = Number(n)||0;
@@ -590,14 +606,21 @@ function fmtDate(iso){
   if(!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
 }
-const CURRENT_CYCLE = cycleKeyFor();
+// The live cycle is no longer tied to the calendar month — it's whichever "cycles" doc
+// has no endDate yet. It only changes when someone settles the cycle (see settleCycle()).
+// Starts null until the first Firestore snapshot arrives.
+let CURRENT_CYCLE = null;
 
 /* ================= STATE ================= */
 let expensesCache = [];      // {id, amount, date, category, description, person, cycleKey}
 let contributionsCache = []; // {id, person, cycleKey, amount, paid, date, note}
+let cyclesCache = [];        // {id, cycleNo, startDate, endDate|null, label}
 let activeCategoryFilter = 'all';
 let chartCategory = null, chartTrend = null;
 let expSelectedPerson = null;
+let bootstrappingCycle = false;
+
+function openCycleDoc(){ return cyclesCache.find(c=> !c.endDate) || null; }
 
 function attachListeners(){
   db.collection('expenses').orderBy('date','desc')
@@ -613,12 +636,58 @@ function attachListeners(){
       snap.forEach(doc=> contributionsCache.push({id: doc.id, ...doc.data()}));
       renderAll();
     }, err=> console.error(err));
+
+  db.collection('cycles').orderBy('cycleNo','asc')
+    .onSnapshot(snap=>{
+      cyclesCache = [];
+      snap.forEach(doc=> cyclesCache.push({id: doc.id, ...doc.data()}));
+      const open = openCycleDoc();
+      if(open){
+        CURRENT_CYCLE = open.id;
+      } else if(cyclesCache.length === 0 && !bootstrappingCycle){
+        // Very first run ever — no cycle exists yet, so open Cycle 1 starting today.
+        bootstrappingCycle = true;
+        db.collection('cycles').doc('cycle_1').set({ cycleNo:1, startDate: todayISO(), endDate: null, label:'' })
+          .catch(e=> console.error(e))
+          .finally(()=> bootstrappingCycle = false);
+      }
+      renderAll();
+    }, err=> console.error(err));
+}
+
+/* ================= CYCLE SETTLEMENT ================= */
+// Only Irshad can settle a cycle — same rule as contributions, since settling is a
+// money-management action. Settling never deletes or moves any existing expense or
+// contribution; it just stamps an endDate on the open cycle and opens the next one.
+function confirmSettleCycle(){
+  if(!isContribManager()){ showToast('Only Irshad can settle the cycle.'); return; }
+  const open = openCycleDoc();
+  if(!open){ showToast('No active cycle to settle yet.'); return; }
+  openConfirm(
+    'Settle This Cycle?',
+    `This closes ${cycleLabel(open.id)} and starts a fresh cycle from today. Nothing already recorded is deleted or moved — it stays exactly as-is in History, and the balance carries forward automatically.`,
+    async ()=>{ await settleCycle(open); closeModal('confirmModal'); }
+  );
+}
+async function settleCycle(open){
+  if(!db){ showToast('Not connected — open Settings & Sync first.'); return; }
+  const today = todayISO();
+  const nextNo = (Number(open.cycleNo)||1) + 1;
+  const nextId = 'cycle_' + nextNo;
+  try{
+    const batch = db.batch();
+    batch.update(db.collection('cycles').doc(open.id), { endDate: today });
+    batch.set(db.collection('cycles').doc(nextId), { cycleNo: nextNo, startDate: today, endDate: null, label:'' });
+    await batch.commit();
+    showToast('Cycle settled — new cycle started.');
+  }catch(e){ console.error(e); showToast('Could not settle the cycle — try again.'); }
 }
 
 /* ================= CORE CALCS ================= */
 // All cycle keys we know about, chronological, always including the current cycle.
 function allCycleKeys(){
-  const s = new Set([CURRENT_CYCLE]);
+  const s = new Set();
+  if(CURRENT_CYCLE) s.add(CURRENT_CYCLE);
   expensesCache.forEach(e=> s.add(e.cycleKey));
   contributionsCache.forEach(c=> s.add(c.cycleKey));
   return Array.from(s).sort();
@@ -663,13 +732,16 @@ async function submitExpense(){
   if(!amount || amount <= 0){ showToast('Enter a valid amount.'); return; }
   if(!person){ showToast('Pick who bought it.'); return; }
 
-  const payload = { amount, date, category, description, person, cycleKey: cycleKeyFor(new Date(date)) };
+  const payload = { amount, date, category, description, person };
 
   try{
     if(editId){
+      // Keep the expense in whichever cycle it already belonged to — editing it
+      // shouldn't move it into today's cycle, even if that cycle is now settled.
       await db.collection('expenses').doc(editId).update(payload);
       showToast('Expense updated.');
     } else {
+      payload.cycleKey = CURRENT_CYCLE;
       payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection('expenses').add(payload);
       showToast('Expense saved.');
@@ -758,7 +830,7 @@ async function markContribUnpaid(){
 
 /* ================= RENDER ================= */
 function renderAll(){
-  if(!currentIdentity()) return;
+  if(!currentIdentity() || !CURRENT_CYCLE) return;
   renderDashboard();
   renderExpensesView();
   renderContributionsView();
@@ -798,7 +870,7 @@ function renderDashboard(){
   balWidget.classList.remove('pos','neg');
   balWidget.classList.add(bal >= 0 ? 'pos' : 'neg');
   document.getElementById('wBalance').textContent = fmt(bal);
-  document.getElementById('wBalanceSub').textContent = bal >= 0 ? 'in hand, carries into next month' : 'overspent — brothers are short this much';
+  document.getElementById('wBalanceSub').textContent = bal >= 0 ? 'in hand, carries into next cycle' : 'overspent — brothers are short this much';
 
   document.getElementById('wReceived').textContent = fmt(received);
   document.getElementById('wReceivedSub').textContent = `of ${fmt(target)} target`;
