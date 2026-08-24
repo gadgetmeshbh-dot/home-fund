@@ -38,6 +38,9 @@
   --irshad:#1F6F54; --irshad-tint:#E4EFE8;
   --safar:#2C5F8A;  --safar-tint:#E5EEF5;
   --favas:#8A5A2C;  --favas-tint:#F2E7D6;
+  --immu:#6B4C9A;    --immu-tint:#EBE4F3;
+  --kunjakka:#B4482A; --kunjakka-tint:#F5E2DA;
+  --maji:#3D8577;    --maji-tint:#DFF0EC;
   --radius:10px;
   --shadow:0 1px 2px rgba(20,31,39,.06),0 8px 24px -12px rgba(20,31,39,.18);
 }
@@ -138,17 +141,21 @@ button{font-family:inherit;cursor:pointer;}
 label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
 input[type=text],input[type=number],input[type=date],select,textarea{width:100%;padding:9px 11px;border:1px solid var(--rule);border-radius:7px;background:var(--paper);font-family:'Inter',sans-serif;font-size:13.5px;color:var(--ink);}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--emerald);outline-offset:1px;background:#fff;}
-.person-toggle{display:flex;gap:8px;}
-.person-btn{flex:1;padding:11px;border-radius:8px;border:1.5px solid var(--rule);background:var(--paper-raised);font-weight:600;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;gap:7px;}
+.person-toggle{display:flex;gap:8px;flex-wrap:wrap;}
+.person-btn{flex:1 1 100px;padding:11px;border-radius:8px;border:1.5px solid var(--rule);background:var(--paper-raised);font-weight:600;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;gap:7px;}
 .person-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--rule);}
 .person-btn.sel-irshad{border-color:var(--irshad);background:var(--irshad-tint);color:var(--irshad);} .person-btn.sel-irshad .dot{background:var(--irshad);}
 .person-btn.sel-safar{border-color:var(--safar);background:var(--safar-tint);color:var(--safar);} .person-btn.sel-safar .dot{background:var(--safar);}
 .person-btn.sel-favas{border-color:var(--favas);background:var(--favas-tint);color:var(--favas);} .person-btn.sel-favas .dot{background:var(--favas);}
+.person-btn.sel-immu{border-color:var(--immu);background:var(--immu-tint);color:var(--immu);} .person-btn.sel-immu .dot{background:var(--immu);}
+.person-btn.sel-kunjakka{border-color:var(--kunjakka);background:var(--kunjakka-tint);color:var(--kunjakka);} .person-btn.sel-kunjakka .dot{background:var(--kunjakka);}
+.person-btn.sel-maji{border-color:var(--maji);background:var(--maji-tint);color:var(--maji);} .person-btn.sel-maji .dot{background:var(--maji);}
 
 .btn{padding:10px 18px;border-radius:8px;border:none;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:7px;}
 .btn-primary{background:var(--ink);color:#fff;} .btn-primary:hover{background:#000;}
 .btn-emerald{background:var(--emerald);color:#fff;} .btn-emerald:hover{background:var(--emerald-dark);}
 .btn-ghost{background:none;border:1px solid var(--rule);color:var(--ink);} .btn-ghost:hover{border-color:var(--ink);}
+.btn-rose{background:var(--rose);color:#fff;} .btn-rose:hover{background:#7C2E27;}
 .btn-danger-text{background:none;border:none;color:var(--rose);font-size:12px;font-weight:600;padding:4px 6px;}
 .btn-edit-text{background:none;border:none;color:var(--ink-soft);font-size:12px;font-weight:600;padding:4px 6px;}
 .btn:disabled{opacity:.45;cursor:not-allowed;}
@@ -166,6 +173,9 @@ tr:last-child td{border-bottom:none;}
 .who-chip.irshad{color:var(--irshad);} .who-chip.irshad .dot{background:var(--irshad);}
 .who-chip.safar{color:var(--safar);} .who-chip.safar .dot{background:var(--safar);}
 .who-chip.favas{color:var(--favas);} .who-chip.favas .dot{background:var(--favas);}
+.who-chip.immu{color:var(--immu);} .who-chip.immu .dot{background:var(--immu);}
+.who-chip.kunjakka{color:var(--kunjakka);} .who-chip.kunjakka .dot{background:var(--kunjakka);}
+.who-chip.maji{color:var(--maji);} .who-chip.maji .dot{background:var(--maji);}
 .cat-badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;}
 .total-row td{font-weight:700;border-top:2px double var(--ink);border-bottom:none;padding-top:12px;}
 .empty-state{text-align:center;padding:34px 20px;color:var(--ink-soft);font-size:13.5px;}
@@ -404,6 +414,9 @@ tr:last-child td{border-bottom:none;}
               <button type="button" class="person-btn" data-p="irshad" onclick="selectExpPerson('irshad')"><span class="dot"></span>Irshad</button>
               <button type="button" class="person-btn" data-p="safar" onclick="selectExpPerson('safar')"><span class="dot"></span>Safar</button>
               <button type="button" class="person-btn" data-p="favas" onclick="selectExpPerson('favas')"><span class="dot"></span>Favas</button>
+              <button type="button" class="person-btn" data-p="immu" onclick="selectExpPerson('immu')"><span class="dot"></span>Immu</button>
+              <button type="button" class="person-btn" data-p="kunjakka" onclick="selectExpPerson('kunjakka')"><span class="dot"></span>Kunjakka</button>
+              <button type="button" class="person-btn" data-p="maji" onclick="selectExpPerson('maji')"><span class="dot"></span>Maji</button>
             </div>
           </div>
           <input type="hidden" id="expEditId" value="">
@@ -480,9 +493,10 @@ tr:last-child td{border-bottom:none;}
         <div><label>Date Received</label><input type="date" id="cmDate"></div>
       </div>
       <div class="form-row"><div style="grid-column:1/-1;"><label>Note (optional)</label><input type="text" id="cmNote" placeholder="e.g. via GPay / cash"></div></div>
-      <input type="hidden" id="cmPerson"><input type="hidden" id="cmCycle">
+      <input type="hidden" id="cmPerson"><input type="hidden" id="cmCycle"><input type="hidden" id="cmRecId">
     </div>
     <div class="modal-foot">
+      <button class="btn btn-rose" id="cmDeleteBtn" style="display:none;" onclick="deleteContribution()">Delete record</button>
       <button class="btn btn-ghost" onclick="markContribUnpaid()">Mark as not received</button>
       <button class="btn btn-emerald" onclick="saveContribution()">✓ Mark Received</button>
     </div>
@@ -536,8 +550,11 @@ const DEFAULT_FIREBASE_CONFIG = {
   appId: "1:649464929654:web:2f3058e484be0a6c6d2e57"
 };
 const CURRENCY = '₹';
+// PEOPLE drives the 3-way contribution split & identity gate — deliberately just the
+// three fund members. BUYER_LABEL/PERSON_LABEL below also covers non-member buyers
+// (Immu, Kunjakka, Maji) so their names/colors show correctly on expense entries.
 const PEOPLE = ['irshad','safar','favas'];
-const PERSON_LABEL = { irshad:'Irshad', safar:'Safar', favas:'Favas' };
+const PERSON_LABEL = { irshad:'Irshad', safar:'Safar', favas:'Favas', immu:'Immu', kunjakka:'Kunjakka', maji:'Maji' };
 const CATEGORY_META = {
   fish:{label:'Fish', color:'#2C5F8A'},
   chicken:{label:'Chicken', color:'#B4842A'},
@@ -851,7 +868,19 @@ function cancelExpenseEdit(){
   const id = currentIdentity();
   selectExpPerson(id && id !== 'guest' ? id : null);
 }
+// An expense can only be deleted by whoever it was logged as bought by ("entered
+// person"), or by Irshad at any time. Checked both when drawing the Delete button
+// (so others don't even see it) and again inside deleteExpense() as a safety net,
+// since the app has no server-side login to enforce this any other way.
+function canDeleteExpense(entryPerson){
+  const id = currentIdentity();
+  if(!id || id === 'guest') return false;
+  return id === 'irshad' || id === entryPerson;
+}
 function deleteExpense(id){
+  const e = expensesCache.find(x=>x.id===id);
+  if(!e){ return; }
+  if(!canDeleteExpense(e.person)){ showToast('Only Irshad or whoever logged this entry can delete it.'); return; }
   openConfirm('Delete this expense?', 'This removes it from the ledger and adjusts the balance.', async ()=>{
     try{ await db.collection('expenses').doc(id).delete(); showToast('Expense deleted.'); }
     catch(e){ console.error(e); showToast('Could not delete.'); }
@@ -874,6 +903,8 @@ function openContribModal(person, cycleKey){
   document.getElementById('cmNote').value = rec ? (rec.note||'') : '';
   document.getElementById('cmPerson').value = person;
   document.getElementById('cmCycle').value = cycleKey;
+  document.getElementById('cmRecId').value = rec ? rec.id : '';
+  document.getElementById('cmDeleteBtn').style.display = rec ? 'inline-flex' : 'none';
   openModal('contribModal');
 }
 async function saveContribution(){
@@ -902,6 +933,20 @@ async function markContribUnpaid(){
   try{ await db.collection('contributions').doc(rec.id).update({paid:false}); showToast('Marked as not received.'); }
   catch(e){ console.error(e); }
   closeModal('contribModal');
+}
+// Fully removes a contribution record (not just marks it unpaid). Irshad-only, and
+// he can do this at any time — no cycle/date restriction — same manager check used
+// everywhere else in this section, checked again here as a safety net.
+async function deleteContribution(){
+  if(!isContribManager()){ showToast('Only Irshad can delete contributions.'); return; }
+  const recId = document.getElementById('cmRecId').value;
+  if(!recId){ closeModal('contribModal'); return; }
+  openConfirm('Delete this contribution record?', 'This permanently removes it and adjusts the balance.', async ()=>{
+    try{ await db.collection('contributions').doc(recId).delete(); showToast('Contribution record deleted.'); }
+    catch(e){ console.error(e); showToast('Could not delete.'); }
+    closeModal('confirmModal');
+    closeModal('contribModal');
+  });
 }
 
 /* ================= RENDER ================= */
@@ -1015,7 +1060,7 @@ function renderExpensesView(){
         <td>${escapeHtml(e.description||'')}</td>
         <td><span class="who-chip ${e.person}"><span class="dot"></span>${PERSON_LABEL[e.person]||'—'}</span></td>
         <td class="num">${fmt(e.amount)}</td>
-        <td style="white-space:nowrap;"><button class="btn-edit-text" onclick="editExpense('${e.id}')">Edit</button><button class="btn-danger-text" onclick="deleteExpense('${e.id}')">Delete</button></td>
+        <td style="white-space:nowrap;"><button class="btn-edit-text" onclick="editExpense('${e.id}')">Edit</button>${canDeleteExpense(e.person) ? `<button class="btn-danger-text" onclick="deleteExpense('${e.id}')">Delete</button>` : ''}</td>
       </tr>`).join('')}
     <tr class="total-row"><td colspan="4">Total</td><td class="num">${fmt(total)}</td><td></td></tr>
   </tbody></table>`;
