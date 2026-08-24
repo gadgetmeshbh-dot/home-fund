@@ -2,7 +2,7 @@
   "name": "Home Fund — Irshad, Safar & Favas",
   "short_name": "Home Fund",
   "description": "Shared household kitty tracker — monthly contributions, expenses, and running balance.",
-  "start_url": "./home-fund.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#EFEBDF",
   "theme_color": "#122029",
