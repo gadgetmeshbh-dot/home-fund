@@ -712,7 +712,13 @@ function deleteExpense(id){
 }
 
 /* ================= CONTRIBUTIONS: CRUD ================= */
+// Only Irshad can add, edit, or clear contribution records. Safar and Favas can
+// still see who's paid and how much — they just can't change it. Checked both at
+// the UI level (cards aren't clickable for them) and here again as a safety net,
+// since the app has no server-side login to enforce this any other way.
+function isContribManager(){ return currentIdentity() === 'irshad'; }
 function openContribModal(person, cycleKey){
+  if(!isContribManager()){ showToast('Only Irshad can update contributions.'); return; }
   const rec = contribRecordFor(person, cycleKey);
   document.getElementById('contribModalTitle').textContent = `${PERSON_LABEL[person]} — ${cycleLabel(cycleKey)}`;
   document.getElementById('cmAmount').value = rec ? rec.amount : getShareAmt();
@@ -723,6 +729,7 @@ function openContribModal(person, cycleKey){
   openModal('contribModal');
 }
 async function saveContribution(){
+  if(!isContribManager()){ showToast('Only Irshad can update contributions.'); return; }
   if(!db){ showToast('Not connected — open Settings & Sync first.'); return; }
   const person = document.getElementById('cmPerson').value;
   const cycleKey = document.getElementById('cmCycle').value;
@@ -739,6 +746,7 @@ async function saveContribution(){
   closeModal('contribModal');
 }
 async function markContribUnpaid(){
+  if(!isContribManager()){ showToast('Only Irshad can update contributions.'); return; }
   const person = document.getElementById('cmPerson').value;
   const cycleKey = document.getElementById('cmCycle').value;
   const rec = contribRecordFor(person, cycleKey);
@@ -762,13 +770,19 @@ function contribCardHtml(person, cycleKey, clickable){
   const rec = contribRecordFor(person, cycleKey);
   const paid = !!(rec && rec.paid);
   const amt = rec ? rec.amount : getShareAmt();
-  const click = clickable ? `onclick="openContribModal('${person}','${cycleKey}')"` : '';
+  // "clickable" from the caller means "this card belongs to the live/current cycle";
+  // it's further narrowed here so only Irshad ever gets an actual click handler.
+  const canEdit = clickable && isContribManager();
+  const click = canEdit ? `onclick="openContribModal('${person}','${cycleKey}')"` : '';
+  const hint = canEdit
+    ? `<div class="contrib-date">Tap to mark received</div>`
+    : `<div class="contrib-date">Only Irshad can update this</div>`;
   return `
-    <div class="contrib-card ${person}" style="${clickable?'cursor:pointer;':''}" ${click}>
+    <div class="contrib-card ${person}" style="${canEdit?'cursor:pointer;':''}" ${click}>
       <div class="contrib-name">${PERSON_LABEL[person]}</div>
       <div class="contrib-status ${paid?'paid':'pending'}"><span class="sdot"></span>${paid?'Received':'Pending'}</div>
       <div class="contrib-amt mono">${fmt(amt)}</div>
-      ${paid && rec.date ? `<div class="contrib-date">on ${fmtDate(rec.date)}${rec.note?' · '+escapeHtml(rec.note):''}</div>` : `<div class="contrib-date">Tap to mark received</div>`}
+      ${paid && rec.date ? `<div class="contrib-date">on ${fmtDate(rec.date)}${rec.note?' · '+escapeHtml(rec.note):''}</div>` : hint}
     </div>`;
 }
 
