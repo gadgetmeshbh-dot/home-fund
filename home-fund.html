@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Home Fund — Irshad · Safar · Favas</title>
+<meta name="theme-color" content="#122029">
+<link rel="manifest" href="manifest.json">
+<!-- Standard favicon (desktop browser tabs) -->
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+<!-- iOS "Add to Home Screen" uses apple-touch-icon, NOT the manifest — this is what makes
+     the green Home Fund icon (not a screenshot or a blank box) show up on the iPhone home screen. -->
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<!-- Makes the iOS status bar blend with the app's dark sidebar when launched from the home screen -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Home Fund">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --ink:#141F27; --ink-soft:#4B5A63;
+  --paper:#EFEBDF; --paper-raised:#FFFFFF; --rule:#DAD3BE;
+  --sidebar:#122029; --sidebar-text:#E7E2D2; --sidebar-text-dim:#8CA0A8;
+  --emerald:#1F6F54; --emerald-dark:#164E3B; --emerald-tint:#E4EFE8;
+  --brass:#B4842A; --brass-tint:#F6ECD8;
+  --rose:#9C3A32; --rose-tint:#F5E4E1;
+  --irshad:#1F6F54; --irshad-tint:#E4EFE8;
+  --safar:#2C5F8A;  --safar-tint:#E5EEF5;
+  --favas:#8A5A2C;  --favas-tint:#F2E7D6;
+  --radius:10px;
+  --shadow:0 1px 2px rgba(20,31,39,.06),0 8px 24px -12px rgba(20,31,39,.18);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;overflow-x:hidden;}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;width:100%;-webkit-font-smoothing:antialiased;}
+h1,h2,h3,.serif{font-family:'Fraunces',serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;}
+::selection{background:var(--brass-tint);}
+
+/* ============ IDENTITY GATE ============ */
+.gate{position:fixed;inset:0;background:linear-gradient(160deg,#122029,#1A2E3A);display:flex;align-items:center;justify-content:center;z-index:500;padding:24px;}
+.gate.hide{display:none;}
+.gate-card{background:var(--paper-raised);border-radius:16px;max-width:400px;width:100%;padding:32px 26px;box-shadow:0 30px 80px rgba(0,0,0,.4);text-align:center;}
+.gate-card .mark{font-size:38px;margin-bottom:6px;}
+.gate-card h2{margin:0 0 6px;font-size:21px;}
+.gate-card p{margin:0 0 22px;color:var(--ink-soft);font-size:13.5px;line-height:1.5;}
+.gate-opt{display:flex;flex-direction:column;gap:10px;}
+.gate-btn{padding:14px;border-radius:10px;border:1.5px solid var(--rule);background:var(--paper);font-weight:600;font-size:15px;display:flex;align-items:center;gap:12px;text-align:left;}
+.gate-btn .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.gate-btn.gi .dot{background:var(--irshad);} .gate-btn.gi:hover{border-color:var(--irshad);background:var(--irshad-tint);}
+.gate-btn.gs .dot{background:var(--safar);}  .gate-btn.gs:hover{border-color:var(--safar);background:var(--safar-tint);}
+.gate-btn.gf .dot{background:var(--favas);}  .gate-btn.gf:hover{border-color:var(--favas);background:var(--favas-tint);}
+.gate-guest{margin-top:14px;background:none;border:none;color:var(--ink-soft);font-size:12.5px;text-decoration:underline;}
+
+/* ============ LAYOUT ============ */
+.app{display:none;min-height:100vh;}
+.app.show{display:flex;}
+.sidebar{width:230px;flex-shrink:0;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;padding:26px 18px;position:fixed;top:0;left:0;bottom:0;transition:transform .25s ease;z-index:50;}
+.brand{display:flex;align-items:center;gap:10px;padding:0 6px 24px 6px;border-bottom:1px solid rgba(231,226,210,.12);margin-bottom:20px;}
+.brand-mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(155deg,var(--emerald),var(--emerald-dark));display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.brand-name{font-family:'Fraunces',serif;font-size:16.5px;font-weight:600;line-height:1.15;}
+.brand-sub{font-size:10.5px;color:var(--sidebar-text-dim);letter-spacing:.06em;text-transform:uppercase;margin-top:2px;}
+.nav{display:flex;flex-direction:column;gap:2px;}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;color:var(--sidebar-text-dim);background:none;border:none;text-align:left;width:100%;}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;}
+.nav-item:hover{background:rgba(231,226,210,.06);color:var(--sidebar-text);}
+.nav-item.active{background:rgba(31,111,84,.35);color:#fff;}
+.sidebar-foot{margin-top:auto;padding-top:16px;border-top:1px solid rgba(231,226,210,.1);}
+.whoami{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--sidebar-text);margin-bottom:10px;padding:8px 10px;background:rgba(231,226,210,.06);border-radius:7px;}
+.whoami .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.whoami button{margin-left:auto;background:none;border:none;color:var(--sidebar-text-dim);font-size:11px;text-decoration:underline;}
+.credit{font-size:10px;color:rgba(140,160,168,.55);margin-top:10px;}
+.settings-btn{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--sidebar-text-dim);background:none;border:1px solid rgba(231,226,210,.15);padding:8px 10px;border-radius:7px;width:100%;}
+.settings-btn:hover{color:#fff;border-color:rgba(231,226,210,.35);}
+.menu-toggle{display:none;position:fixed;top:16px;left:16px;z-index:60;background:var(--sidebar);color:#fff;border:none;width:42px;height:42px;border-radius:9px;align-items:center;justify-content:center;box-shadow:var(--shadow);}
+.main{margin-left:230px;flex:1;padding:32px 38px 80px;max-width:1180px;}
+.view{display:none;}
+.view.active{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:24px;gap:20px;flex-wrap:wrap;}
+.page-head h1{font-size:26px;font-weight:600;margin:0 0 4px;}
+.page-head p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--emerald-dark);font-weight:600;margin-bottom:6px;}
+
+/* ============ WIDGETS ============ */
+.widgets{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;}
+.widgets-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.widget{background:var(--paper-raised);border:1px solid var(--rule);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden;min-width:0;}
+.widget-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:600;margin-bottom:10px;}
+.widget-value{font-family:'IBM Plex Mono',monospace;font-size:23px;font-weight:600;letter-spacing:-.5px;}
+.widget-sub{font-size:12px;color:var(--ink-soft);margin-top:6px;}
+.widget.balance{color:#fff;}
+.widget.balance.pos{background:linear-gradient(155deg,var(--emerald),var(--emerald-dark));}
+.widget.balance.neg{background:linear-gradient(155deg,var(--rose),#7A2C26);}
+.widget.balance .widget-label{color:rgba(255,255,255,.75);}
+.widget.balance .widget-sub{color:rgba(255,255,255,.8);}
+.widget-bar{position:absolute;left:0;top:0;bottom:0;width:4px;}
+.widget-bar.irshad{background:var(--irshad);} .widget-bar.safar{background:var(--safar);} .widget-bar.favas{background:var(--favas);}
+.progress-track{height:7px;border-radius:99px;background:var(--rule);margin-top:10px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--emerald);border-radius:99px;transition:width .3s ease;}
+
+/* ============ CARD ============ */
+.card{background:var(--paper-raised);border:1px solid var(--rule);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:22px;}
+.card-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--rule);gap:10px;flex-wrap:wrap;}
+.card-head h3{margin:0;font-size:15.5px;font-weight:600;}
+.card-body{padding:20px;}
+
+/* ============ FORM ============ */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-row.three{grid-template-columns:1fr 1fr 1fr;}
+label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;padding:9px 11px;border:1px solid var(--rule);border-radius:7px;background:var(--paper);font-family:'Inter',sans-serif;font-size:13.5px;color:var(--ink);}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--emerald);outline-offset:1px;background:#fff;}
+.person-toggle{display:flex;gap:8px;}
+.person-btn{flex:1;padding:11px;border-radius:8px;border:1.5px solid var(--rule);background:var(--paper-raised);font-weight:600;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;gap:7px;}
+.person-btn .dot{width:8px;height:8px;border-radius:50%;background:var(--rule);}
+.person-btn.sel-irshad{border-color:var(--irshad);background:var(--irshad-tint);color:var(--irshad);} .person-btn.sel-irshad .dot{background:var(--irshad);}
+.person-btn.sel-safar{border-color:var(--safar);background:var(--safar-tint);color:var(--safar);} .person-btn.sel-safar .dot{background:var(--safar);}
+.person-btn.sel-favas{border-color:var(--favas);background:var(--favas-tint);color:var(--favas);} .person-btn.sel-favas .dot{background:var(--favas);}
+
+.btn{padding:10px 18px;border-radius:8px;border:none;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:7px;}
+.btn-primary{background:var(--ink);color:#fff;} .btn-primary:hover{background:#000;}
+.btn-emerald{background:var(--emerald);color:#fff;} .btn-emerald:hover{background:var(--emerald-dark);}
+.btn-ghost{background:none;border:1px solid var(--rule);color:var(--ink);} .btn-ghost:hover{border-color:var(--ink);}
+.btn-danger-text{background:none;border:none;color:var(--rose);font-size:12px;font-weight:600;padding:4px 6px;}
+.btn-edit-text{background:none;border:none;color:var(--ink-soft);font-size:12px;font-weight:600;padding:4px 6px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn-block{width:100%;justify-content:center;}
+.btn-sm{padding:7px 12px;font-size:12.5px;}
+
+/* ============ TABLE ============ */
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);font-weight:600;padding:8px 10px;border-bottom:1.5px solid var(--ink);}
+td{padding:10px;border-bottom:1px solid var(--rule);vertical-align:middle;}
+td.num,th.num{text-align:right;font-family:'IBM Plex Mono',monospace;}
+tr:last-child td{border-bottom:none;}
+.who-chip{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px;}
+.who-chip .dot{width:7px;height:7px;border-radius:50%;}
+.who-chip.irshad{color:var(--irshad);} .who-chip.irshad .dot{background:var(--irshad);}
+.who-chip.safar{color:var(--safar);} .who-chip.safar .dot{background:var(--safar);}
+.who-chip.favas{color:var(--favas);} .who-chip.favas .dot{background:var(--favas);}
+.cat-badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;}
+.total-row td{font-weight:700;border-top:2px double var(--ink);border-bottom:none;padding-top:12px;}
+.empty-state{text-align:center;padding:34px 20px;color:var(--ink-soft);font-size:13.5px;}
+.empty-state .big{font-size:28px;display:block;margin-bottom:8px;}
+.table-scroll{overflow-x:auto;}
+
+/* ============ CONTRIBUTION CARD ============ */
+.contrib-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.contrib-card{border:1.5px solid var(--rule);border-radius:12px;padding:18px;background:var(--paper-raised);box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.contrib-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;}
+.contrib-card.irshad::before{background:var(--irshad);} .contrib-card.safar::before{background:var(--safar);} .contrib-card.favas::before{background:var(--favas);}
+.contrib-name{font-family:'Fraunces',serif;font-size:17px;font-weight:600;margin-bottom:2px;}
+.contrib-amt{font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:600;margin:8px 0 4px;}
+.contrib-status{font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
+.contrib-status.paid{color:var(--emerald-dark);}
+.contrib-status.pending{color:var(--rose);}
+.contrib-status .sdot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.contrib-date{font-size:11.5px;color:var(--ink-soft);margin-top:6px;}
+
+/* ============ MODAL ============ */
+.modal-backdrop{position:fixed;inset:0;background:rgba(18,32,41,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-backdrop.show{display:flex;}
+.modal{background:var(--paper-raised);border-radius:14px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:88vh;overflow-y:auto;}
+.modal-head{padding:20px 22px 0;}
+.modal-head h3{margin:0 0 4px;font-size:18px;}
+.modal-head p{margin:0;color:var(--ink-soft);font-size:13px;}
+.modal-body{padding:18px 22px;}
+.modal-foot{padding:14px 22px 20px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--rule);margin-top:6px;}
+
+/* ============ HISTORY ACCORDION ============ */
+.hist-item{border:1px solid var(--rule);border-radius:9px;margin-bottom:10px;overflow:hidden;background:var(--paper-raised);}
+.hist-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;cursor:pointer;gap:14px;flex-wrap:wrap;}
+.hist-head:hover{background:var(--paper);}
+.hist-title{font-weight:600;font-size:14.5px;}
+.hist-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+.hist-right{display:flex;align-items:center;gap:14px;}
+.hist-total{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:15px;}
+.hist-body{display:none;padding:0 18px 18px;border-top:1px solid var(--rule);}
+.hist-item.open .hist-body{display:block;}
+.chev{transition:transform .2s;color:var(--ink-soft);}
+.hist-item.open .chev{transform:rotate(180deg);}
+
+.subtabs{display:flex;gap:6px;margin-bottom:18px;background:var(--paper-raised);border:1px solid var(--rule);border-radius:9px;padding:4px;width:fit-content;}
+.subtab{padding:8px 15px;border-radius:6px;border:none;background:none;font-weight:600;font-size:13px;color:var(--ink-soft);}
+.subtab.active{background:var(--ink);color:#fff;}
+.chart-wrap{position:relative;height:300px;padding:18px;}
+.grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;}
+.info-note{background:var(--brass-tint);border:1px solid var(--brass);color:#6B4E17;border-radius:8px;padding:12px 14px;font-size:12.5px;margin-bottom:18px;line-height:1.5;}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:9px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow);z-index:200;display:none;}
+.toast.show{display:block;}
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.filter-chip{padding:6px 13px;border-radius:99px;border:1.5px solid var(--rule);background:var(--paper-raised);font-size:12px;font-weight:600;color:var(--ink-soft);}
+.filter-chip.active{border-color:var(--ink);background:var(--ink);color:#fff;}
+
+@media (max-width:980px){.grid-2{grid-template-columns:1fr;} .widgets{grid-template-columns:1fr 1fr;} .contrib-grid{grid-template-columns:1fr;}}
+@media (max-width:760px){
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .menu-toggle{display:flex;}
+  .main{margin-left:0;padding:80px 16px 60px;}
+  .form-row,.form-row.three{grid-template-columns:1fr !important;}
+  .widgets{grid-template-columns:1fr 1fr !important;}
+  .widget{padding:14px 12px 12px;}
+  .widget-value{font-size:18px;}
+  .page-head h1{font-size:21px;}
+  input[type=text],input[type=number],input[type=date],select,textarea{font-size:16px;padding:10px 11px;}
+  table{font-size:12.5px;}
+}
+@media (max-width:420px){
+  .widgets{grid-template-columns:1fr 1fr;gap:10px;}
+  .widget{padding:12px 10px 11px;}
+  .widget-label{font-size:10px;}
+  .widget-value{font-size:16px;}
+  .widget-sub{font-size:10.5px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ IDENTITY GATE ============ -->
+<div class="gate" id="identityGate">
+  <div class="gate-card">
+    <div class="mark">🏠</div>
+    <h2>Home Fund</h2>
+    <p>Shared household kitty for Irshad, Safar &amp; Favas. Who's opening the app?</p>
+    <div class="gate-opt">
+      <button class="gate-btn gi" onclick="setIdentity('irshad')"><span class="dot"></span> Irshad</button>
+      <button class="gate-btn gs" onclick="setIdentity('safar')"><span class="dot"></span> Safar</button>
+      <button class="gate-btn gf" onclick="setIdentity('favas')"><span class="dot"></span> Favas</button>
+    </div>
+    <button class="gate-guest" onclick="setIdentity('guest')">Just viewing — skip this</button>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="app" id="appShell">
+  <button class="menu-toggle" id="menuToggle">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">🏠</div>
+      <div>
+        <div class="brand-name">Home Fund</div>
+        <div class="brand-sub">Irshad · Safar · Favas</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" data-view="expenses">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        Expenses
+      </button>
+      <button class="nav-item" data-view="contributions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+        Contributions
+      </button>
+      <button class="nav-item" data-view="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+        History
+      </button>
+      <button class="nav-item" data-view="reports">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></svg>
+        Reports
+      </button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="whoami" id="whoamiBox"><span class="dot"></span><span id="whoamiName">—</span><button onclick="switchIdentity()">switch</button></div>
+      <button class="settings-btn" id="settingsBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings &amp; Sync
+      </button>
+      <div class="credit">Home Fund · v1.0</div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- ============ DASHBOARD ============ -->
+    <div class="view active" id="view-dashboard">
+      <div class="page-head">
+        <div>
+          <div class="eyebrow">This Cycle · <span id="dashCycleLabel">—</span></div>
+          <h1 id="dashGreeting">Welcome</h1>
+          <p>The shared kitty — everyone puts in, expenses come out, balance carries forward.</p>
+        </div>
+        <button class="btn btn-emerald" onclick="openExpenseQuick()">＋ Add Expense</button>
+      </div>
+
+      <div class="widgets">
+        <div class="widget balance" id="widgetBalance">
+          <div class="widget-label">Balance Carried Forward</div>
+          <div class="widget-value mono" id="wBalance">₹0</div>
+          <div class="widget-sub" id="wBalanceSub">as of today</div>
+        </div>
+        <div class="widget">
+          <div class="widget-label">Received This Cycle</div>
+          <div class="widget-value mono" id="wReceived">₹0</div>
+          <div class="progress-track"><div class="progress-fill" id="wReceivedBar" style="width:0%"></div></div>
+          <div class="widget-sub" id="wReceivedSub">of ₹12,000 target</div>
+        </div>
+        <div class="widget">
+          <div class="widget-label">Spent This Cycle</div>
+          <div class="widget-value mono" id="wSpent">₹0</div>
+          <div class="widget-sub" id="wSpentSub">0 entries logged</div>
+        </div>
+        <div class="widget">
+          <div class="widget-label">Your Status</div>
+          <div class="widget-value mono" id="wYouStatus" style="font-size:16px;">—</div>
+          <div class="widget-sub" id="wYouSub">this month</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Contributions — This Cycle</h3><button class="btn btn-ghost btn-sm" data-view-link="contributions">Manage →</button></div>
+        <div class="card-body"><div class="contrib-grid" id="dashContribGrid"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Recent Expenses</h3><button class="btn btn-ghost btn-sm" data-view-link="expenses">View all →</button></div>
+        <div class="card-body" style="padding:0;"><div class="table-scroll" id="dashRecentWrap"></div></div>
+      </div>
+    </div>
+
+    <!-- ============ EXPENSES ============ -->
+    <div class="view" id="view-expenses">
+      <div class="page-head">
+        <div><div class="eyebrow">Log &amp; Track</div><h1>Expenses</h1><p>Everything bought out of the common fund.</p></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3 id="expFormTitle">Add an Expense</h3></div>
+        <div class="card-body">
+          <div class="form-row three">
+            <div><label>Amount (₹)</label><input type="number" min="0" step="1" id="expAmount" placeholder="0"></div>
+            <div><label>Date</label><input type="date" id="expDate"></div>
+            <div><label>Category</label>
+              <select id="expCategory">
+                <option value="fish">Fish</option>
+                <option value="chicken">Chicken</option>
+                <option value="beef">Beef / Mutton</option>
+                <option value="vegetables">Vegetables</option>
+                <option value="supermarket">Supermarket / Grocery</option>
+                <option value="dairy">Milk &amp; Dairy</option>
+                <option value="gas">Gas Cylinder</option>
+                <option value="electricity">Electricity Bill</option>
+                <option value="water">Water Bill</option>
+                <option value="rent">Rent</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div style="grid-column:1/-1;"><label>Description</label><input type="text" id="expDesc" placeholder="e.g. Kingfish + prawns from Al Osra market"></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label>Who bought it?</label>
+            <div class="person-toggle" id="expPersonToggle">
+              <button type="button" class="person-btn" data-p="irshad" onclick="selectExpPerson('irshad')"><span class="dot"></span>Irshad</button>
+              <button type="button" class="person-btn" data-p="safar" onclick="selectExpPerson('safar')"><span class="dot"></span>Safar</button>
+              <button type="button" class="person-btn" data-p="favas" onclick="selectExpPerson('favas')"><span class="dot"></span>Favas</button>
+            </div>
+          </div>
+          <input type="hidden" id="expEditId" value="">
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-emerald" id="expSubmitBtn" onclick="submitExpense()">＋ Save Expense</button>
+            <button class="btn btn-ghost" id="expCancelBtn" style="display:none;" onclick="cancelExpenseEdit()">Cancel edit</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>This Cycle's Expenses — <span id="expCycleLabel"></span></h3>
+          <span class="mono" id="expCycleTotal" style="font-weight:600;"></span>
+        </div>
+        <div class="card-body">
+          <div class="filter-bar" id="catFilterBar"></div>
+          <div class="table-scroll" id="expTableWrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ CONTRIBUTIONS ============ -->
+    <div class="view" id="view-contributions">
+      <div class="page-head">
+        <div><div class="eyebrow">The Kitty</div><h1>Contributions</h1><p>₹4,000 each, ₹12,000 total — tick off when the money's in hand.</p></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3 id="contribCycleTitle">This Cycle</h3></div>
+        <div class="card-body"><div class="contrib-grid" id="contribGrid"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Contribution History</h3></div>
+        <div class="card-body" style="padding:0;"><div class="table-scroll" id="contribHistWrap"></div></div>
+      </div>
+    </div>
+
+    <!-- ============ HISTORY ============ -->
+    <div class="view" id="view-history">
+      <div class="page-head">
+        <div><div class="eyebrow">Month by Month</div><h1>Cycle History</h1><p>How much came in, went out, and carried forward — every month.</p></div>
+      </div>
+      <div id="historyWrap"></div>
+    </div>
+
+    <!-- ============ REPORTS ============ -->
+    <div class="view" id="view-reports">
+      <div class="page-head">
+        <div><div class="eyebrow">Where It Goes</div><h1>Reports</h1><p>Spending by category and the fund's trend over time.</p></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><div class="card-head"><h3>This Cycle by Category</h3></div><div class="chart-wrap"><canvas id="chartCategory"></canvas></div></div>
+        <div class="card"><div class="card-head"><h3>Category Totals</h3></div><div class="card-body" style="padding:0;"><div id="catTableWrap"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>Monthly Trend — Received vs Spent vs Balance</h3></div>
+        <div class="chart-wrap"><canvas id="chartTrend"></canvas></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ============ MODALS ============ -->
+<div class="modal-backdrop" id="contribModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="contribModalTitle">Mark Contribution</h3><p>Record the amount and date received.</p></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div><label>Amount (₹)</label><input type="number" min="0" step="1" id="cmAmount" value="4000"></div>
+        <div><label>Date Received</label><input type="date" id="cmDate"></div>
+      </div>
+      <div class="form-row"><div style="grid-column:1/-1;"><label>Note (optional)</label><input type="text" id="cmNote" placeholder="e.g. via GPay / cash"></div></div>
+      <input type="hidden" id="cmPerson"><input type="hidden" id="cmCycle">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="markContribUnpaid()">Mark as not received</button>
+      <button class="btn btn-emerald" onclick="saveContribution()">✓ Mark Received</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Settings &amp; Sync</h3><p>Firebase keeps everyone's phone in sync automatically.</p></div>
+    <div class="modal-body">
+      <div class="info-note">⚠️ You shouldn't normally need this screen. The connection is meant to be <b>built into the app file itself</b> — see <code>DEFAULT_FIREBASE_CONFIG</code> near the top of the HTML's &lt;script&gt; section. Irshad fills that in once, before sharing the file/link, so Safar and Favas never see this screen at all. Saving here only stores the keys on <i>this one device</i> — useful for testing, but not a substitute for baking them into the file.</div>
+      <div class="form-row"><div style="grid-column:1/-1;"><label>API Key</label><input type="text" id="cfgApiKey" placeholder="AIza..."></div></div>
+      <div class="form-row"><div style="grid-column:1/-1;"><label>Auth Domain</label><input type="text" id="cfgAuthDomain" placeholder="yourapp.firebaseapp.com"></div></div>
+      <div class="form-row"><div style="grid-column:1/-1;"><label>Project ID</label><input type="text" id="cfgProjectId" placeholder="yourapp"></div></div>
+      <div class="form-row"><div style="grid-column:1/-1;"><label>Storage Bucket</label><input type="text" id="cfgStorageBucket" placeholder="yourapp.firebasestorage.app"></div></div>
+      <div class="form-row">
+        <div><label>Messaging Sender ID</label><input type="text" id="cfgSenderId" placeholder="123456789"></div>
+        <div><label>App ID</label><input type="text" id="cfgAppId" placeholder="1:123:web:abc"></div>
+      </div>
+      <div class="form-row"><div style="grid-column:1/-1;"><label>Monthly Share per Person (₹)</label><input type="number" min="0" step="1" id="cfgShareAmt" value="4000"></div></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn btn-primary" id="saveConfigBtn">Save &amp; Reload</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-head"><h3 id="confirmTitle">Are you sure?</h3><p id="confirmSub"></p></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--rose);" id="confirmYesBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONFIG ================= */
+// Irshad: replace with your own Firebase project keys before sharing the link/APK.
+// Create a free project at https://console.firebase.google.com → Build → Firestore Database → Start in test mode.
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB6BA4A9YXCQHHv52G8rcyxeZXQA572Ipk",
+  authDomain: "home-fund-90b4c.firebaseapp.com",
+  projectId: "home-fund-90b4c",
+  storageBucket: "home-fund-90b4c.firebasestorage.app",
+  messagingSenderId: "649464929654",
+  appId: "1:649464929654:web:2f3058e484be0a6c6d2e57"
+};
+const CURRENCY = '₹';
+const PEOPLE = ['irshad','safar','favas'];
+const PERSON_LABEL = { irshad:'Irshad', safar:'Safar', favas:'Favas' };
+const CATEGORY_META = {
+  fish:{label:'Fish', color:'#2C5F8A'},
+  chicken:{label:'Chicken', color:'#B4842A'},
+  beef:{label:'Beef / Mutton', color:'#9C3A32'},
+  vegetables:{label:'Vegetables', color:'#4C7A3A'},
+  supermarket:{label:'Supermarket', color:'#1F6F54'},
+  dairy:{label:'Milk & Dairy', color:'#7A5FA0'},
+  gas:{label:'Gas Cylinder', color:'#A8562C'},
+  electricity:{label:'Electricity', color:'#C9A227'},
+  water:{label:'Water', color:'#2C8AA0'},
+  rent:{label:'Rent', color:'#5A5A5A'},
+  other:{label:'Other', color:'#6B6B6B'}
+};
+
+function getSavedConfig(){ try{ return JSON.parse(localStorage.getItem('hf_firebase_cfg')||'null'); }catch(e){ return null; } }
+function saveConfig(cfg){ localStorage.setItem('hf_firebase_cfg', JSON.stringify(cfg)); }
+function getShareAmt(){ return Number(localStorage.getItem('hf_share_amt')) || 4000; }
+function saveShareAmt(v){ localStorage.setItem('hf_share_amt', String(v)); }
+
+let db = null;
+function initFirebase(){
+  const saved = getSavedConfig();
+  const cfg = (saved && saved.apiKey) ? saved : DEFAULT_FIREBASE_CONFIG;
+  if(!cfg.apiKey || !cfg.projectId){
+    document.getElementById('dashRecentWrap').innerHTML = `<div class="empty-state"><span class="big">🔌</span>Not connected yet. Irshad needs to paste the Firebase project keys into <b>DEFAULT_FIREBASE_CONFIG</b> near the top of this file's code, then re-share it. That's a one-time edit — after that, everyone opening the file or link is connected automatically, no setup needed on their end.</div>`;
+    return;
+  }
+  try{
+    firebase.initializeApp(cfg);
+    db = firebase.firestore();
+    attachListeners();
+  }catch(e){ console.error(e); showToast('Could not connect to Firebase — check Settings.'); }
+}
+
+/* ================= IDENTITY ================= */
+function currentIdentity(){ return localStorage.getItem('hf_identity') || null; }
+function setIdentity(p){
+  localStorage.setItem('hf_identity', p);
+  document.getElementById('identityGate').classList.add('hide');
+  document.getElementById('appShell').classList.add('show');
+  applyIdentityUI();
+}
+function switchIdentity(){
+  document.getElementById('appShell').classList.remove('show');
+  document.getElementById('identityGate').classList.remove('hide');
+}
+function applyIdentityUI(){
+  const id = currentIdentity();
+  const box = document.getElementById('whoamiBox');
+  const nameEl = document.getElementById('whoamiName');
+  if(id && id !== 'guest'){
+    nameEl.textContent = PERSON_LABEL[id];
+    box.querySelector('.dot').style.background = getComputedStyle(document.documentElement).getPropertyValue('--'+id);
+    document.getElementById('dashGreeting').textContent = 'Welcome back, ' + PERSON_LABEL[id];
+    selectExpPerson(id);
+  } else {
+    nameEl.textContent = 'Guest view';
+    box.querySelector('.dot').style.background = '#8CA0A8';
+    document.getElementById('dashGreeting').textContent = 'Welcome';
+  }
+  renderAll();
+}
+
+/* ================= DATE / CYCLE HELPERS ================= */
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function cycleKeyFor(d = new Date()){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+function cycleLabel(key){
+  const [y,m] = key.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString('en-IN',{month:'long', year:'numeric'});
+}
+function fmt(n){
+  const v = Number(n)||0;
+  const sign = v < 0 ? '−' : '';
+  return sign + CURRENCY + Math.abs(v).toLocaleString('en-IN');
+}
+function fmtDate(iso){
+  if(!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+}
+const CURRENT_CYCLE = cycleKeyFor();
+
+/* ================= STATE ================= */
+let expensesCache = [];      // {id, amount, date, category, description, person, cycleKey}
+let contributionsCache = []; // {id, person, cycleKey, amount, paid, date, note}
+let activeCategoryFilter = 'all';
+let chartCategory = null, chartTrend = null;
+let expSelectedPerson = null;
+
+function attachListeners(){
+  db.collection('expenses').orderBy('date','desc')
+    .onSnapshot(snap=>{
+      expensesCache = [];
+      snap.forEach(doc=> expensesCache.push({id: doc.id, ...doc.data()}));
+      renderAll();
+    }, err=>{ console.error(err); showToast('Sync error — check Firestore rules.'); });
+
+  db.collection('contributions')
+    .onSnapshot(snap=>{
+      contributionsCache = [];
+      snap.forEach(doc=> contributionsCache.push({id: doc.id, ...doc.data()}));
+      renderAll();
+    }, err=> console.error(err));
+}
+
+/* ================= CORE CALCS ================= */
+// All cycle keys we know about, chronological, always including the current cycle.
+function allCycleKeys(){
+  const s = new Set([CURRENT_CYCLE]);
+  expensesCache.forEach(e=> s.add(e.cycleKey));
+  contributionsCache.forEach(c=> s.add(c.cycleKey));
+  return Array.from(s).sort();
+}
+function expensesForCycle(key){ return expensesCache.filter(e=> e.cycleKey === key); }
+function contributionsForCycle(key){ return contributionsCache.filter(c=> c.cycleKey === key); }
+function receivedInCycle(key){ return contributionsForCycle(key).filter(c=>c.paid).reduce((s,c)=> s + (Number(c.amount)||0), 0); }
+function spentInCycle(key){ return expensesForCycle(key).reduce((s,e)=> s + (Number(e.amount)||0), 0); }
+// Running balance carried into (and through) this cycle = cumulative received - cumulative spent,
+// counting every cycle up to and including this one. Always recomputed — never stored — so it can
+// never drift if someone edits an old entry.
+function cumulativeBalanceThrough(key){
+  let bal = 0;
+  allCycleKeys().filter(k => k <= key).forEach(k=>{ bal += receivedInCycle(k) - spentInCycle(k); });
+  return bal;
+}
+function liveBalance(){ return cumulativeBalanceThrough(CURRENT_CYCLE); }
+function contribRecordFor(person, cycleKey){
+  return contributionsCache.find(c=> c.person===person && c.cycleKey===cycleKey) || null;
+}
+
+/* ================= EXPENSES: CRUD ================= */
+function selectExpPerson(p){
+  expSelectedPerson = p;
+  document.querySelectorAll('#expPersonToggle .person-btn').forEach(b=>{
+    b.classList.toggle('sel-'+b.dataset.p, b.dataset.p === p);
+  });
+}
+function openExpenseQuick(){
+  document.querySelector('.nav-item[data-view="expenses"]').click();
+  document.getElementById('expAmount').focus();
+}
+async function submitExpense(){
+  if(!db){ showToast('Not connected — open Settings & Sync first.'); return; }
+  const amount = parseFloat(document.getElementById('expAmount').value);
+  const date = document.getElementById('expDate').value || todayISO();
+  const category = document.getElementById('expCategory').value;
+  const description = document.getElementById('expDesc').value.trim();
+  const person = expSelectedPerson;
+  const editId = document.getElementById('expEditId').value;
+
+  if(!amount || amount <= 0){ showToast('Enter a valid amount.'); return; }
+  if(!person){ showToast('Pick who bought it.'); return; }
+
+  const payload = { amount, date, category, description, person, cycleKey: cycleKeyFor(new Date(date)) };
+
+  try{
+    if(editId){
+      await db.collection('expenses').doc(editId).update(payload);
+      showToast('Expense updated.');
+    } else {
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('expenses').add(payload);
+      showToast('Expense saved.');
+    }
+  }catch(e){ console.error(e); showToast('Could not save — check connection.'); return; }
+
+  cancelExpenseEdit();
+}
+function editExpense(id){
+  const e = expensesCache.find(x=>x.id===id);
+  if(!e) return;
+  document.getElementById('expAmount').value = e.amount;
+  document.getElementById('expDate').value = e.date;
+  document.getElementById('expCategory').value = e.category;
+  document.getElementById('expDesc').value = e.description || '';
+  selectExpPerson(e.person);
+  document.getElementById('expEditId').value = id;
+  document.getElementById('expFormTitle').textContent = 'Edit Expense';
+  document.getElementById('expSubmitBtn').textContent = '✓ Save Changes';
+  document.getElementById('expCancelBtn').style.display = 'inline-flex';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function cancelExpenseEdit(){
+  document.getElementById('expEditId').value = '';
+  document.getElementById('expAmount').value = '';
+  document.getElementById('expDesc').value = '';
+  document.getElementById('expDate').value = todayISO();
+  document.getElementById('expFormTitle').textContent = 'Add an Expense';
+  document.getElementById('expSubmitBtn').textContent = '＋ Save Expense';
+  document.getElementById('expCancelBtn').style.display = 'none';
+  const id = currentIdentity();
+  selectExpPerson(id && id !== 'guest' ? id : null);
+}
+function deleteExpense(id){
+  openConfirm('Delete this expense?', 'This removes it from the ledger and adjusts the balance.', async ()=>{
+    try{ await db.collection('expenses').doc(id).delete(); showToast('Expense deleted.'); }
+    catch(e){ console.error(e); showToast('Could not delete.'); }
+    closeModal('confirmModal');
+  });
+}
+
+/* ================= CONTRIBUTIONS: CRUD ================= */
+function openContribModal(person, cycleKey){
+  const rec = contribRecordFor(person, cycleKey);
+  document.getElementById('contribModalTitle').textContent = `${PERSON_LABEL[person]} — ${cycleLabel(cycleKey)}`;
+  document.getElementById('cmAmount').value = rec ? rec.amount : getShareAmt();
+  document.getElementById('cmDate').value = (rec && rec.date) ? rec.date : todayISO();
+  document.getElementById('cmNote').value = rec ? (rec.note||'') : '';
+  document.getElementById('cmPerson').value = person;
+  document.getElementById('cmCycle').value = cycleKey;
+  openModal('contribModal');
+}
+async function saveContribution(){
+  if(!db){ showToast('Not connected — open Settings & Sync first.'); return; }
+  const person = document.getElementById('cmPerson').value;
+  const cycleKey = document.getElementById('cmCycle').value;
+  const amount = parseFloat(document.getElementById('cmAmount').value) || getShareAmt();
+  const date = document.getElementById('cmDate').value || todayISO();
+  const note = document.getElementById('cmNote').value.trim();
+  const rec = contribRecordFor(person, cycleKey);
+  const payload = { person, cycleKey, amount, date, note, paid: true };
+  try{
+    if(rec){ await db.collection('contributions').doc(rec.id).update(payload); }
+    else { payload.createdAt = firebase.firestore.FieldValue.serverTimestamp(); await db.collection('contributions').add(payload); }
+    showToast(`${PERSON_LABEL[person]} marked as received.`);
+  }catch(e){ console.error(e); showToast('Could not save.'); return; }
+  closeModal('contribModal');
+}
+async function markContribUnpaid(){
+  const person = document.getElementById('cmPerson').value;
+  const cycleKey = document.getElementById('cmCycle').value;
+  const rec = contribRecordFor(person, cycleKey);
+  if(!rec){ closeModal('contribModal'); return; }
+  try{ await db.collection('contributions').doc(rec.id).update({paid:false}); showToast('Marked as not received.'); }
+  catch(e){ console.error(e); }
+  closeModal('contribModal');
+}
+
+/* ================= RENDER ================= */
+function renderAll(){
+  if(!currentIdentity()) return;
+  renderDashboard();
+  renderExpensesView();
+  renderContributionsView();
+  renderHistory();
+  renderReports();
+}
+
+function contribCardHtml(person, cycleKey, clickable){
+  const rec = contribRecordFor(person, cycleKey);
+  const paid = !!(rec && rec.paid);
+  const amt = rec ? rec.amount : getShareAmt();
+  const click = clickable ? `onclick="openContribModal('${person}','${cycleKey}')"` : '';
+  return `
+    <div class="contrib-card ${person}" style="${clickable?'cursor:pointer;':''}" ${click}>
+      <div class="contrib-name">${PERSON_LABEL[person]}</div>
+      <div class="contrib-status ${paid?'paid':'pending'}"><span class="sdot"></span>${paid?'Received':'Pending'}</div>
+      <div class="contrib-amt mono">${fmt(amt)}</div>
+      ${paid && rec.date ? `<div class="contrib-date">on ${fmtDate(rec.date)}${rec.note?' · '+escapeHtml(rec.note):''}</div>` : `<div class="contrib-date">Tap to mark received</div>`}
+    </div>`;
+}
+
+function renderDashboard(){
+  document.getElementById('dashCycleLabel').textContent = cycleLabel(CURRENT_CYCLE);
+  const bal = liveBalance();
+  const received = receivedInCycle(CURRENT_CYCLE);
+  const spent = spentInCycle(CURRENT_CYCLE);
+  const target = PEOPLE.length * getShareAmt();
+  const spentCount = expensesForCycle(CURRENT_CYCLE).length;
+
+  const balWidget = document.getElementById('widgetBalance');
+  balWidget.classList.remove('pos','neg');
+  balWidget.classList.add(bal >= 0 ? 'pos' : 'neg');
+  document.getElementById('wBalance').textContent = fmt(bal);
+  document.getElementById('wBalanceSub').textContent = bal >= 0 ? 'in hand, carries into next month' : 'overspent — brothers are short this much';
+
+  document.getElementById('wReceived').textContent = fmt(received);
+  document.getElementById('wReceivedSub').textContent = `of ${fmt(target)} target`;
+  document.getElementById('wReceivedBar').style.width = Math.min(100, (received/target)*100).toFixed(0) + '%';
+
+  document.getElementById('wSpent').textContent = fmt(spent);
+  document.getElementById('wSpentSub').textContent = `${spentCount} entr${spentCount===1?'y':'ies'} logged`;
+
+  const id = currentIdentity();
+  if(id && id !== 'guest'){
+    const rec = contribRecordFor(id, CURRENT_CYCLE);
+    const paid = !!(rec && rec.paid);
+    document.getElementById('wYouStatus').textContent = paid ? '✓ Paid' : 'Not paid yet';
+    document.getElementById('wYouStatus').style.color = paid ? 'var(--emerald-dark)' : 'var(--rose)';
+    document.getElementById('wYouSub').textContent = paid ? `on ${fmtDate(rec.date)}` : `send ${fmt(getShareAmt())} to Irshad`;
+  } else {
+    document.getElementById('wYouStatus').textContent = '—';
+    document.getElementById('wYouStatus').style.color = 'var(--ink)';
+    document.getElementById('wYouSub').textContent = 'guest view';
+  }
+
+  document.getElementById('dashContribGrid').innerHTML = PEOPLE.map(p=> contribCardHtml(p, CURRENT_CYCLE, true)).join('');
+
+  const recent = expensesForCycle(CURRENT_CYCLE).slice(0, 8);
+  const wrap = document.getElementById('dashRecentWrap');
+  if(!db){ return; } // connection message already shown
+  if(recent.length === 0){
+    wrap.innerHTML = `<div class="empty-state"><span class="big">🧺</span>No expenses logged this cycle yet.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>By</th><th class="num">Amount</th></tr></thead><tbody>
+    ${recent.map(e=>`
+      <tr>
+        <td class="mono" style="color:var(--ink-soft);white-space:nowrap;">${fmtDate(e.date)}</td>
+        <td><span class="cat-badge" style="background:${(CATEGORY_META[e.category]||CATEGORY_META.other).color}">${(CATEGORY_META[e.category]||CATEGORY_META.other).label}</span></td>
+        <td>${escapeHtml(e.description||'')}</td>
+        <td><span class="who-chip ${e.person}"><span class="dot"></span>${PERSON_LABEL[e.person]||'—'}</span></td>
+        <td class="num">${fmt(e.amount)}</td>
+      </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderExpensesView(){
+  document.getElementById('expCycleLabel').textContent = cycleLabel(CURRENT_CYCLE);
+  const list = expensesForCycle(CURRENT_CYCLE).filter(e=> activeCategoryFilter==='all' || e.category===activeCategoryFilter);
+  const total = expensesForCycle(CURRENT_CYCLE).reduce((s,e)=> s+(Number(e.amount)||0),0);
+  document.getElementById('expCycleTotal').textContent = 'Total: ' + fmt(total);
+
+  const cats = ['all', ...Object.keys(CATEGORY_META)];
+  document.getElementById('catFilterBar').innerHTML = cats.map(c=>{
+    const label = c==='all' ? 'All' : CATEGORY_META[c].label;
+    return `<button class="filter-chip ${activeCategoryFilter===c?'active':''}" onclick="setCategoryFilter('${c}')">${label}</button>`;
+  }).join('');
+
+  const wrap = document.getElementById('expTableWrap');
+  if(!db) return;
+  if(list.length === 0){
+    wrap.innerHTML = `<div class="empty-state"><span class="big">🧾</span>No expenses ${activeCategoryFilter==='all'?'logged':'in this category'} yet.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>By</th><th class="num">Amount</th><th></th></tr></thead><tbody>
+    ${list.map(e=>`
+      <tr>
+        <td class="mono" style="color:var(--ink-soft);white-space:nowrap;">${fmtDate(e.date)}</td>
+        <td><span class="cat-badge" style="background:${(CATEGORY_META[e.category]||CATEGORY_META.other).color}">${(CATEGORY_META[e.category]||CATEGORY_META.other).label}</span></td>
+        <td>${escapeHtml(e.description||'')}</td>
+        <td><span class="who-chip ${e.person}"><span class="dot"></span>${PERSON_LABEL[e.person]||'—'}</span></td>
+        <td class="num">${fmt(e.amount)}</td>
+        <td style="white-space:nowrap;"><button class="btn-edit-text" onclick="editExpense('${e.id}')">Edit</button><button class="btn-danger-text" onclick="deleteExpense('${e.id}')">Delete</button></td>
+      </tr>`).join('')}
+    <tr class="total-row"><td colspan="4">Total</td><td class="num">${fmt(total)}</td><td></td></tr>
+  </tbody></table>`;
+}
+function setCategoryFilter(c){ activeCategoryFilter = c; renderExpensesView(); }
+
+function renderContributionsView(){
+  document.getElementById('contribCycleTitle').textContent = cycleLabel(CURRENT_CYCLE);
+  document.getElementById('contribGrid').innerHTML = PEOPLE.map(p=> contribCardHtml(p, CURRENT_CYCLE, true)).join('');
+
+  const wrap = document.getElementById('contribHistWrap');
+  if(!db) return;
+  const rows = contributionsCache.slice().sort((a,b)=> (a.cycleKey===b.cycleKey ? (a.person<b.person?-1:1) : (a.cycleKey<b.cycleKey?1:-1)));
+  if(rows.length === 0){
+    wrap.innerHTML = `<div class="empty-state"><span class="big">🤝</span>No contributions recorded yet.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<table><thead><tr><th>Cycle</th><th>Person</th><th>Status</th><th>Date</th><th>Note</th><th class="num">Amount</th></tr></thead><tbody>
+    ${rows.map(c=>`
+      <tr>
+        <td class="mono">${cycleLabel(c.cycleKey)}</td>
+        <td><span class="who-chip ${c.person}"><span class="dot"></span>${PERSON_LABEL[c.person]}</span></td>
+        <td>${c.paid ? '<span style="color:var(--emerald-dark);font-weight:600;">✓ Received</span>' : '<span style="color:var(--rose);font-weight:600;">Pending</span>'}</td>
+        <td class="mono" style="color:var(--ink-soft);">${c.paid ? fmtDate(c.date) : '—'}</td>
+        <td>${escapeHtml(c.note||'')}</td>
+        <td class="num">${fmt(c.amount)}</td>
+      </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderHistory(){
+  const wrap = document.getElementById('historyWrap');
+  if(!db){ wrap.innerHTML = ''; return; }
+  const keys = allCycleKeys().slice().sort().reverse();
+  if(keys.length === 0){ wrap.innerHTML = `<div class="empty-state">Nothing recorded yet.</div>`; return; }
+  wrap.innerHTML = keys.map(key=>{
+    const received = receivedInCycle(key);
+    const spent = spentInCycle(key);
+    const bal = cumulativeBalanceThrough(key);
+    const isLive = key === CURRENT_CYCLE;
+    return `
+    <div class="hist-item" id="hist-${key}">
+      <div class="hist-head" onclick="toggleHist('${key}')">
+        <div>
+          <div class="hist-title">${cycleLabel(key)} ${isLive?'<span style=\"color:var(--brass);font-weight:600;font-size:11px;\">· LIVE</span>':''}</div>
+          <div class="hist-meta">Received ${fmt(received)} · Spent ${fmt(spent)}</div>
+        </div>
+        <div class="hist-right">
+          <div class="hist-total" style="color:${bal>=0?'var(--emerald-dark)':'var(--rose)'};">${fmt(bal)}</div>
+          <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="hist-body"></div>
+    </div>`;
+  }).join('');
+}
+function toggleHist(key){
+  const item = document.getElementById('hist-'+key);
+  const willOpen = !item.classList.contains('open');
+  document.querySelectorAll('.hist-item.open').forEach(i=> i.classList.remove('open'));
+  if(willOpen){
+    item.classList.add('open');
+    const body = item.querySelector('.hist-body');
+    const exps = expensesForCycle(key);
+    const contribs = PEOPLE.map(p=> ({p, rec: contribRecordFor(p, key)}));
+    body.innerHTML = `
+      <div style="margin:14px 0 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;">Contributions</div>
+      <div class="contrib-grid" style="grid-template-columns:repeat(3,1fr);gap:10px;">
+        ${contribs.map(c=> contribCardHtml(c.p, key, key===CURRENT_CYCLE)).join('')}
+      </div>
+      <div style="margin:16px 0 10px;font-size:12.5px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;">Expenses (${exps.length})</div>
+      ${exps.length===0 ? '<div class="empty-state" style="padding:16px;">None logged.</div>' : `
+      <table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>By</th><th class="num">Amount</th></tr></thead><tbody>
+        ${exps.map(e=>`<tr><td class="mono" style="color:var(--ink-soft);">${fmtDate(e.date)}</td><td><span class="cat-badge" style="background:${(CATEGORY_META[e.category]||CATEGORY_META.other).color}">${(CATEGORY_META[e.category]||CATEGORY_META.other).label}</span></td><td>${escapeHtml(e.description||'')}</td><td><span class="who-chip ${e.person}"><span class="dot"></span>${PERSON_LABEL[e.person]||''}</span></td><td class="num">${fmt(e.amount)}</td></tr>`).join('')}
+      </tbody></table>`}
+      <div style="margin-top:14px;text-align:right;"><button class="btn btn-primary btn-sm" onclick="exportCyclePdf('${key}')">⬇ Export PDF Statement</button></div>
+    `;
+  }
+}
+
+/* ================= REPORTS ================= */
+function renderReports(){
+  if(!db) return;
+  const exps = expensesForCycle(CURRENT_CYCLE);
+  const byCat = {};
+  exps.forEach(e=>{ byCat[e.category] = (byCat[e.category]||0) + (Number(e.amount)||0); });
+  const catKeys = Object.keys(byCat).sort((a,b)=> byCat[b]-byCat[a]);
+
+  const catCanvas = document.getElementById('chartCategory');
+  const catTableWrap = document.getElementById('catTableWrap');
+  if(catKeys.length === 0){
+    if(chartCategory){ chartCategory.destroy(); chartCategory = null; }
+    catCanvas.getContext('2d').clearRect(0,0,catCanvas.width,catCanvas.height);
+    catTableWrap.innerHTML = `<div class="empty-state">No expenses this cycle yet.</div>`;
+  } else {
+    if(chartCategory) chartCategory.destroy();
+    chartCategory = new Chart(catCanvas.getContext('2d'), {
+      type:'doughnut',
+      data:{ labels: catKeys.map(c=>(CATEGORY_META[c]||CATEGORY_META.other).label),
+        datasets:[{ data: catKeys.map(c=>byCat[c]), backgroundColor: catKeys.map(c=>(CATEGORY_META[c]||CATEGORY_META.other).color), borderWidth:2, borderColor:'#fff' }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{family:'Inter'}, boxWidth:11}}} }
+    });
+    const total = catKeys.reduce((s,c)=>s+byCat[c],0);
+    catTableWrap.innerHTML = `<table><thead><tr><th>Category</th><th class="num">Amount</th><th class="num">Share</th></tr></thead><tbody>
+      ${catKeys.map(c=>`<tr><td><span class="cat-badge" style="background:${(CATEGORY_META[c]||CATEGORY_META.other).color}">${(CATEGORY_META[c]||CATEGORY_META.other).label}</span></td><td class="num">${fmt(byCat[c])}</td><td class="num">${((byCat[c]/total)*100).toFixed(0)}%</td></tr>`).join('')}
+      <tr class="total-row"><td>Total</td><td class="num">${fmt(total)}</td><td class="num">100%</td></tr>
+    </tbody></table>`;
+  }
+
+  const keys = allCycleKeys();
+  const labels = keys.map(k=> cycleLabel(k).replace(' 20','\u2019').replace(/^(\w+)/, w=>w.slice(0,3)));
+  const receivedData = keys.map(k=> receivedInCycle(k));
+  const spentData = keys.map(k=> spentInCycle(k));
+  const balData = keys.map(k=> cumulativeBalanceThrough(k));
+
+  const trendCanvas = document.getElementById('chartTrend');
+  if(chartTrend) chartTrend.destroy();
+  chartTrend = new Chart(trendCanvas.getContext('2d'), {
+    data:{ labels, datasets:[
+      { type:'bar', label:'Received', data:receivedData, backgroundColor:'rgba(31,111,84,0.55)', borderRadius:4, maxBarThickness:22 },
+      { type:'bar', label:'Spent', data:spentData, backgroundColor:'rgba(156,58,50,0.55)', borderRadius:4, maxBarThickness:22 },
+      { type:'line', label:'Balance', data:balData, borderColor:'#B4842A', backgroundColor:'rgba(180,132,42,0.12)', tension:.3, pointRadius:4, pointBackgroundColor:'#B4842A', yAxisID:'y' }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom', labels:{font:{family:'Inter'}}}},
+      scales:{ y:{ticks:{callback:v=>CURRENCY+v, font:{family:'IBM Plex Mono'}}, grid:{color:'#E4E0D2'}}, x:{grid:{display:false}} }
+    }
+  });
+}
+
+/* ================= PDF EXPORT ================= */
+function exportCyclePdf(key){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const exps = expensesForCycle(key);
+  const received = receivedInCycle(key);
+  const spent = spentInCycle(key);
+  const bal = cumulativeBalanceThrough(key);
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('Home Fund — Statement', 14, 18);
+  doc.setFont('helvetica','normal'); doc.setFontSize(11);
+  doc.text(`${cycleLabel(key)}`, 14, 26);
+  doc.text('Irshad · Safar · Favas', 14, 32);
+
+  doc.autoTable({
+    startY: 40,
+    head: [['', '']],
+    body: [
+      ['Received this cycle', fmt(received)],
+      ['Spent this cycle', fmt(spent)],
+      ['Balance carried forward', fmt(bal)]
+    ],
+    theme:'plain', styles:{fontSize:11}
+  });
+
+  doc.autoTable({
+    startY: (doc.lastAutoTable.finalY||60) + 8,
+    head: [['Date','Category','Description','By','Amount']],
+    body: exps.map(e=> [fmtDate(e.date), (CATEGORY_META[e.category]||CATEGORY_META.other).label, e.description||'', PERSON_LABEL[e.person]||'', fmt(e.amount)]),
+    styles:{fontSize:9.5}, headStyles:{fillColor:[20,31,39]}
+  });
+
+  doc.save(`home-fund-${key}.pdf`);
+}
+
+/* ================= MODALS / TOAST / UTIL ================= */
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function openConfirm(title, sub, onYes){
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmSub').textContent = sub;
+  const btn = document.getElementById('confirmYesBtn');
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
+  clone.addEventListener('click', onYes);
+  openModal('confirmModal');
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2600);
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ================= NAV ================= */
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    document.getElementById('sidebar').classList.remove('open');
+  });
+});
+document.querySelectorAll('[data-view-link]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelector(`.nav-item[data-view="${btn.dataset.viewLink}"]`).click();
+  });
+});
+document.getElementById('menuToggle').addEventListener('click', ()=> document.getElementById('sidebar').classList.toggle('open'));
+
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  const cfg = getSavedConfig() || {};
+  document.getElementById('cfgApiKey').value = cfg.apiKey||'';
+  document.getElementById('cfgAuthDomain').value = cfg.authDomain||'';
+  document.getElementById('cfgProjectId').value = cfg.projectId||'';
+  document.getElementById('cfgStorageBucket').value = cfg.storageBucket||'';
+  document.getElementById('cfgSenderId').value = cfg.messagingSenderId||'';
+  document.getElementById('cfgAppId').value = cfg.appId||'';
+  document.getElementById('cfgShareAmt').value = getShareAmt();
+  openModal('settingsModal');
+});
+document.getElementById('saveConfigBtn').addEventListener('click', ()=>{
+  const cfg = {
+    apiKey: document.getElementById('cfgApiKey').value.trim(),
+    authDomain: document.getElementById('cfgAuthDomain').value.trim(),
+    projectId: document.getElementById('cfgProjectId').value.trim(),
+    storageBucket: document.getElementById('cfgStorageBucket').value.trim(),
+    messagingSenderId: document.getElementById('cfgSenderId').value.trim(),
+    appId: document.getElementById('cfgAppId').value.trim()
+  };
+  if(cfg.apiKey && cfg.projectId){ saveConfig(cfg); }
+  saveShareAmt(parseFloat(document.getElementById('cfgShareAmt').value) || 4000);
+  closeModal('settingsModal');
+  location.reload();
+});
+
+/* ================= INIT ================= */
+document.getElementById('expDate').value = todayISO();
+document.getElementById('cmDate').value = todayISO();
+
+(function boot(){
+  const id = currentIdentity();
+  if(id){
+    document.getElementById('identityGate').classList.add('hide');
+    document.getElementById('appShell').classList.add('show');
+    applyIdentityUI();
+  }
+  initFirebase();
+})();
+</script>
+</body>
+</html>
